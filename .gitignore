@@ -1,0 +1,78 @@
+# Credentials and local environment settings; keep safe setup templates.
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+.ssh/
+
+# Installed dependencies, Python environments and generated builds.
+node_modules/
+.venv/
+venv/
+dist/
+build/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Runtime caches, reports and local tooling.
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.wrangler/
+.vite/
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+test-results/
+playwright-report/
+blob-report/
+logs/
+*.log
+*.pid
+*.pid.lock
+.ipynb_checkpoints/
+
+# Private uploaded manuscripts/covers and local database files.
+/backend/uploads/
+/backend/data/
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# Downloaded weights and conversion output (source schemas stay included).
+*.gguf*
+*.safetensors*
+pytorch_model*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+/models/
+/artifacts/
+/conversion-work/
+/ai-service/models/
+/ai-service/artifacts/
+/ai-service/conversion-work/
+
+# Machine-specific editor and OS files.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Keep source, public assets, package lockfiles, tests and deployment configs.

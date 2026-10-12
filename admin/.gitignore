@@ -1,0 +1,17 @@
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.cache/
+.vite/
+.wrangler/
+coverage/
+test-results/
+playwright-report/
+*.log
