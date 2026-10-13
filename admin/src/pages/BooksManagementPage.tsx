@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../api/admin.api';
@@ -27,6 +27,7 @@ export const BooksManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -64,13 +65,16 @@ export const BooksManagementPage: React.FC = () => {
   });
 
   // Fetch Books
-  const { data: booksData, isLoading } = useQuery({
-    queryKey: ['adminBooks', searchTerm, selectedCategory, selectedStatus],
+  const { data: booksData, isLoading, isError, refetch } = useQuery({
+    queryKey: ['adminBooks', searchTerm, selectedCategory, selectedStatus, page],
     queryFn: async () => {
       const res = await adminApi.getBooks({
-        search: searchTerm,
+        q: searchTerm,
         category: selectedCategory,
         status: selectedStatus,
+        sortBy: 'newest',
+        page,
+        limit: 12,
       });
       return res.data;
     },
@@ -127,6 +131,12 @@ export const BooksManagementPage: React.FC = () => {
       }
     },
     onSuccess: (result) => {
+      if (!editingBook) {
+        setPage(1);
+        setSearchTerm('');
+        setSelectedCategory('');
+        setSelectedStatus('');
+      }
       queryClient.invalidateQueries({ queryKey: ['adminBooks'] });
       queryClient.invalidateQueries({ queryKey: ['adminOverview'] });
       if (result.intelligenceMessage) alert(result.intelligenceMessage);
@@ -228,6 +238,13 @@ export const BooksManagementPage: React.FC = () => {
   };
 
   const books = booksData?.data || [];
+  const pagination = booksData?.pagination;
+  const totalPages = Math.max(1, pagination?.totalPages || 1);
+  useEffect(() => {
+    if (pagination && page > totalPages) setPage(totalPages);
+  }, [pagination, page, totalPages]);
+  const firstPage = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, i) => firstPage + i);
 
   return (
     <div className="space-y-6">
@@ -254,7 +271,7 @@ export const BooksManagementPage: React.FC = () => {
             type="text"
             placeholder="Search by title, author..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-stone-50 dark:bg-white/5 border border-[#DDE8E1] dark:border-white/10 text-[#202522] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#123C35]"
           />
         </div>
@@ -263,7 +280,7 @@ export const BooksManagementPage: React.FC = () => {
           {/* Category filter */}
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
             className="px-3 py-2 text-xs rounded-xl bg-stone-50 dark:bg-white/5 border border-[#DDE8E1] dark:border-white/10 text-[#202522] dark:text-white focus:outline-none"
           >
             <option value="">All Categories</option>
@@ -277,7 +294,7 @@ export const BooksManagementPage: React.FC = () => {
           {/* Status filter */}
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
             className="px-3 py-2 text-xs rounded-xl bg-stone-50 dark:bg-white/5 border border-[#DDE8E1] dark:border-white/10 text-[#202522] dark:text-white focus:outline-none"
           >
             <option value="">All Statuses</option>
@@ -293,6 +310,11 @@ export const BooksManagementPage: React.FC = () => {
         {isLoading ? (
           <div className="py-20 flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-[#123C35] dark:border-[#C6A15B] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : isError ? (
+          <div role="alert" className="p-6 text-center">
+            <p>Could not load your books.</p>
+            <Button onClick={() => void refetch()} className="mt-3" size="sm">Retry</Button>
           </div>
         ) : books.length > 0 ? (
           <div className="overflow-x-auto">
@@ -333,6 +355,9 @@ export const BooksManagementPage: React.FC = () => {
                             </div>
                             <div className="text-[11px] text-[#202522]/60 dark:text-gray-400">
                               By {book.author}
+                            </div>
+                            <div className="mt-1 text-[11px] text-[#202522]/60 dark:text-gray-400">
+                              {book.pageCount ? `${book.pageCount} reading pages` : 'Manuscript needed for reading'}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1">
                               {book.isFeatured && (
@@ -454,6 +479,23 @@ export const BooksManagementPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {pagination && !isError && (
+        <nav aria-label="Book catalog pages" className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span aria-live="polite">{pagination.total} books · Page {page} of {totalPages}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" disabled={page <= 1 || isLoading} onClick={() => setPage(page - 1)}>Previous</Button>
+            {pageNumbers.map(number => (
+              <button key={number} type="button" aria-label={`Page ${number}`} aria-current={number === page ? 'page' : undefined}
+                onClick={() => setPage(number)} disabled={isLoading}
+                className={`rounded-lg border px-3 py-2 ${number === page ? 'bg-[#123C35] text-white' : 'bg-white text-[#123C35] dark:bg-[#0E2622] dark:text-white'}`}>
+                {number}
+              </button>
+            ))}
+            <Button size="sm" disabled={page >= totalPages || isLoading} onClick={() => setPage(page + 1)}>Next</Button>
+          </div>
+        </nav>
+      )}
 
       {/* Create / Edit Book Modal */}
       <Modal
@@ -683,7 +725,7 @@ export const BooksManagementPage: React.FC = () => {
               className="block w-full text-xs text-[#202522] dark:text-white file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-xs dark:file:bg-white/10"
             />
             <p className="mt-1 text-[11px] text-stone-500 dark:text-gray-400">
-              Optional. After saving, readable text is stored privately and indexed with page or chapter references. Scanned PDFs need OCR first. Maximum 50 MB.
+              Upload a PDF to preserve the original page layout, fonts, and images. Word files require LibreOffice on the backend; exporting to PDF from Word preserves your layout most accurately. Uploading replaces this book’s pages and updates its AI index. Scanned PDFs need OCR first. Maximum 50 MB.
               {manuscriptFile ? ` Selected: ${manuscriptFile.name}` : ''}
             </p>
           </div>
